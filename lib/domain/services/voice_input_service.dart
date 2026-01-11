@@ -13,14 +13,33 @@ class VoiceInputService {
   bool _isListening = false;
   String _currentLanguage = 'en-US';
 
+  Function(String message)? _activeErrorHandler;
+  Function(String status)? _activeStatusHandler;
+
   /// Initialize voice services
   Future<bool> initialize() async {
     if (_isInitialized) return true;
 
     try {
       _isInitialized = await _speechToText.initialize(
-        onError: (error) => print('Speech recognition error: $error'),
-        onStatus: (status) => print('Speech recognition status: $status'),
+        onError: (error) {
+          print('Speech recognition error: $error');
+          _isListening = false;
+          _activeErrorHandler?.call(_friendlySpeechErrorMessage(error));
+          _activeErrorHandler = null;
+          _activeStatusHandler = null;
+        },
+        onStatus: (status) {
+          print('Speech recognition status: $status');
+          if (status == 'done' || status == 'notListening') {
+            _isListening = false;
+            _activeStatusHandler?.call(status);
+            _activeErrorHandler = null;
+            _activeStatusHandler = null;
+            return;
+          }
+          _activeStatusHandler?.call(status);
+        },
       );
 
       if (_isInitialized) {
@@ -92,6 +111,8 @@ class VoiceInputService {
   Future<void> startListening({
     required Function(String) onResult,
     Function(String)? onPartialResult,
+    Function(String message)? onError,
+    Function(String status)? onStatus,
   }) async {
     if (Platform.isWindows) {
       throw Exception(
@@ -110,12 +131,17 @@ class VoiceInputService {
 
     _isListening = true;
 
+    _activeErrorHandler = onError;
+    _activeStatusHandler = onStatus;
+
     try {
       await _speechToText.listen(
         onResult: (result) {
           if (result.finalResult) {
             onResult(result.recognizedWords);
             _isListening = false;
+            _activeErrorHandler = null;
+            _activeStatusHandler = null;
           } else if (onPartialResult != null) {
             onPartialResult(result.recognizedWords);
           }
@@ -127,6 +153,8 @@ class VoiceInputService {
       );
     } catch (e) {
       _isListening = false;
+      _activeErrorHandler = null;
+      _activeStatusHandler = null;
       rethrow;
     }
   }
@@ -137,6 +165,26 @@ class VoiceInputService {
       await _speechToText.stop();
       _isListening = false;
     }
+
+    _activeErrorHandler = null;
+    _activeStatusHandler = null;
+  }
+
+  String _friendlySpeechErrorMessage(Object error) {
+    final message = error.toString().toLowerCase();
+    if (message.contains('error_no_match')) {
+      return "No speech detected. Please try again and speak clearly.";
+    }
+    if (message.contains('error_speech_timeout')) {
+      return 'No speech detected (timeout). Please try again.';
+    }
+    if (message.contains('error_permission')) {
+      return 'Microphone permission is required for voice input.';
+    }
+    if (message.contains('error_audio')) {
+      return 'Audio input error. Check your microphone and try again.';
+    }
+    return 'Speech recognition error: ${error.toString()}';
   }
 
   /// Speak text (voice feedback)
@@ -296,6 +344,8 @@ class VoiceInputService {
   void dispose() {
     _speechToText.cancel();
     _flutterTts.stop();
+    _activeErrorHandler = null;
+    _activeStatusHandler = null;
   }
 }
 

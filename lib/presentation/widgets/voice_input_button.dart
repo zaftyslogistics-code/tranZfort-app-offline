@@ -101,6 +101,24 @@ class _VoiceInputButtonState extends ConsumerState<VoiceInputButton>
             widget.onPartialResult?.call(text);
           }
         },
+        onError: (message) {
+          if (!mounted) return;
+          _showError(message);
+          setState(() {
+            _isListening = false;
+            _partialText = '';
+          });
+          _animationController.stop();
+        },
+        onStatus: (status) {
+          if (!mounted) return;
+          if (status == 'done' || status == 'notListening') {
+            setState(() {
+              _isListening = false;
+            });
+            _animationController.stop();
+          }
+        },
       );
     } catch (e) {
       _showError(_friendlyVoiceErrorMessage(e));
@@ -306,6 +324,26 @@ class _CompactVoiceInputButtonState
               _isListening = false;
             });
             widget.onResult(text);
+          }
+        },
+        onError: (message) {
+          if (!mounted) return;
+          setState(() {
+            _isListening = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        },
+        onStatus: (status) {
+          if (!mounted) return;
+          if (status == 'done' || status == 'notListening') {
+            setState(() {
+              _isListening = false;
+            });
           }
         },
       );
