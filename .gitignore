@@ -58,6 +58,9 @@ app.*.map.json
 *.7z
 *.rar
 
+# LLM model artifacts (never commit)
+*.gguf
+
 # App build artifacts (never commit)
 *.apk
 *.aab
