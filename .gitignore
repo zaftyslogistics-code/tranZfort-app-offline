@@ -61,6 +61,9 @@ app.*.map.json
 # LLM model artifacts (never commit)
 *.gguf
 
+# Generated model manifest (upload to GitHub Releases; never commit)
+/manifest.json
+
 # App build artifacts (never commit)
 *.apk
 *.aab
