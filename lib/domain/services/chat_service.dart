@@ -36,6 +36,20 @@ class ChatService {
     );
     _messages.add(userMessage);
 
+    final normalized = userInput.toLowerCase().trim();
+    if (_isGreeting(normalized)) {
+      final aiMessage = ChatMessage(
+        id: _uuid.v4(),
+        content:
+            "Hi! I can help you with trips, expenses, payments, and analytics. Try: 'Show trips today' or 'How much did I spend on fuel?'",
+        isUser: false,
+        timestamp: DateTime.now(),
+        type: MessageType.text,
+      );
+      _messages.add(aiMessage);
+      return aiMessage;
+    }
+
     try {
       // Classify intent
       final intent = _nlpService.classifyIntent(userInput);
@@ -103,6 +117,25 @@ class ChatService {
       
       return errorMessage;
     }
+  }
+
+  bool _isGreeting(String input) {
+    const greetings = {
+      'hi',
+      'hello',
+      'hey',
+      'hai',
+      'hii',
+      'hiii',
+      'good morning',
+      'good afternoon',
+      'good evening',
+    };
+    if (greetings.contains(input)) return true;
+    if (input.startsWith('hi ')) return true;
+    if (input.startsWith('hello ')) return true;
+    if (input.startsWith('hey ')) return true;
+    return false;
   }
 
   /// Get suggestions based on context

@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/services/voice_input_service.dart';
 
+String _friendlyVoiceErrorMessage(Object error) {
+  final message = error.toString();
+  if (message.contains('HRESULT: 80070490')) {
+    return 'Voice dictation is not available on this Windows setup. Please use typing for now.';
+  }
+  return 'Error starting voice recognition: $message';
+}
+
 /// Voice Input Button Widget
 /// Provides a microphone button for voice input with visual feedback
 class VoiceInputButton extends ConsumerStatefulWidget {
@@ -95,7 +103,7 @@ class _VoiceInputButtonState extends ConsumerState<VoiceInputButton>
         },
       );
     } catch (e) {
-      _showError('Error starting voice recognition: $e');
+      _showError(_friendlyVoiceErrorMessage(e));
       setState(() {
         _isListening = false;
       });
@@ -290,16 +298,30 @@ class _CompactVoiceInputButtonState
       _isListening = true;
     });
 
-    await _voiceService.startListening(
-      onResult: (text) {
-        if (mounted) {
-          setState(() {
-            _isListening = false;
-          });
-          widget.onResult(text);
-        }
-      },
-    );
+    try {
+      await _voiceService.startListening(
+        onResult: (text) {
+          if (mounted) {
+            setState(() {
+              _isListening = false;
+            });
+            widget.onResult(text);
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isListening = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_friendlyVoiceErrorMessage(e)),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override

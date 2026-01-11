@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
@@ -91,6 +93,13 @@ class VoiceInputService {
     required Function(String) onResult,
     Function(String)? onPartialResult,
   }) async {
+    if (Platform.isWindows) {
+      throw Exception(
+        'Voice dictation is not available on this Windows setup (HRESULT: 80070490). '
+        'Please enable Windows Speech features and microphone permission, or use voice input on Android.',
+      );
+    }
+
     if (!_isInitialized) {
       throw Exception('Voice service not initialized');
     }
@@ -101,20 +110,25 @@ class VoiceInputService {
 
     _isListening = true;
 
-    await _speechToText.listen(
-      onResult: (result) {
-        if (result.finalResult) {
-          onResult(result.recognizedWords);
-          _isListening = false;
-        } else if (onPartialResult != null) {
-          onPartialResult(result.recognizedWords);
-        }
-      },
-      localeId: _currentLanguage,
-      listenMode: ListenMode.confirmation,
-      cancelOnError: true,
-      partialResults: true,
-    );
+    try {
+      await _speechToText.listen(
+        onResult: (result) {
+          if (result.finalResult) {
+            onResult(result.recognizedWords);
+            _isListening = false;
+          } else if (onPartialResult != null) {
+            onPartialResult(result.recognizedWords);
+          }
+        },
+        localeId: _currentLanguage,
+        listenMode: ListenMode.confirmation,
+        cancelOnError: true,
+        partialResults: true,
+      );
+    } catch (e) {
+      _isListening = false;
+      rethrow;
+    }
   }
 
   /// Stop listening
