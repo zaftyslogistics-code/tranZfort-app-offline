@@ -1,0 +1,104 @@
+# Uncomment this line to define a global platform for your project
+platform :ios, '13.0'
+
+# CocoaPods analytics sends network requests to Google Analytics. To disable
+# this, uncomment the following line.
+# ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+def parse_KV_file(file)
+  require 'yaml'
+  YAML.load_file(file)
+end
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  defined?(Flutter::ROOT) ? Flutter::ROOT : File.expand_path('..')
+end
+
+File.exist?("#{flutter_root}/.flutter-plugins") ? File.read("#{flutter_root}/.flutter-plugins") : []
+
+def flutter_install_all_ios_pods(file_path = nil)
+  defined?(Flutter::FlutterInstaller) ? Flutter::FlutterInstaller.new.install_all_ios_pods(file_path) : []
+end
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
+  # Add Firebase pods if needed
+  # pod 'Firebase/Core'
+  # pod 'Firebase/Messaging'
+  # pod 'Firebase/Analytics'
+  
+  # Add Google Maps pods if needed
+  # pod 'GoogleMaps'
+  # pod 'Google-Maps-iOS-Utils'
+  
+  # Add other third-party pods if needed
+  # pod 'Alamofire', '~> 5.0'
+  # pod 'SwiftyJSON', '~> 4.0'
+end
+
+# Add post_install script for configuration
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      # Set iOS deployment target
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      
+      # Enable bitcode
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+      
+      # Set Swift version
+      config.build_settings['SWIFT_VERSION'] = '5.0'
+      
+      # Fix for Xcode 12+ compatibility
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64 i386'
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphoneos*]'] = 'i386'
+      
+      # Architecture settings
+      config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
+      
+      # Code signing
+      config.build_settings['CODE_SIGN_STYLE'] = 'Automatic'
+      config.build_settings['CODE_SIGN_IDENTITY[sdk=iphoneos*]'] = 'iPhone Developer'
+      
+      # Bundle identifier
+      config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.tranzfort.tms'
+      
+      # Version settings
+      config.build_settings['MARKETING_VERSION'] = '1.0.0'
+      config.build_settings['CURRENT_PROJECT_VERSION'] = '1'
+      
+      # Optimization settings
+      config.build_settings['GCC_OPTIMIZATION_LEVEL'] = '0'
+      config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
+      
+      # Debug settings
+      if config.name == 'Debug'
+        config.build_settings['GCC_SYMBOLS_PRIVATE_EXTERN'] = 'NO'
+        config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = 'DEBUG'
+        config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
+      end
+      
+      # Release settings
+      if config.name == 'Release'
+        config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-O'
+        config.build_settings['VALIDATE_PRODUCT'] = 'YES'
+      end
+    end
+  end
+  
+  # Fix for Flutter plugin compatibility
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings["EXCLUDED_ARCHS[sdk=iphonesimulator*]"] = "arm64"
+    config.build_settings["ONLY_ACTIVE_ARCH"] = "YES"
+  end
+end
