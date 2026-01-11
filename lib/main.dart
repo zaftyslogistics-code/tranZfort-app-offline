@@ -17,7 +17,7 @@ import 'presentation/pages/payment_list_screen.dart';
 import 'presentation/pages/trip_form_screen.dart';
 import 'presentation/pages/expense_form_screen.dart';
 import 'presentation/pages/settings_screen.dart';
-import 'presentation/pages/ai_chat_screen.dart';
+import 'presentation/pages/ai_entry_screen.dart';
 import 'presentation/widgets/quick_action_fab.dart';
 import 'presentation/widgets/ai_assistant_fab.dart';
 import 'core/theme/app_theme.dart';
@@ -82,7 +82,7 @@ class DashboardScreen extends ConsumerWidget {
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => const AiChatScreen(),
+                  builder: (context) => const AiEntryScreen(),
                 ),
               );
             },

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/expense_provider.dart';
 import 'expense_form_screen.dart';
-import 'ai_chat_screen.dart';
+import 'ai_entry_screen.dart';
 import '../../data/database.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ui_components.dart';
@@ -23,7 +23,7 @@ class ExpenseListScreen extends ConsumerWidget {
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => const AiChatScreen(),
+                  builder: (context) => const AiEntryScreen(),
                 ),
               );
             },

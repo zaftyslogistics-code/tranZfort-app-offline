@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../pages/ai_chat_screen.dart';
+import '../pages/ai_entry_screen.dart';
 
 /// AI Assistant Floating Action Button
 /// Provides quick access to the AI chat assistant from anywhere in the app
@@ -20,7 +20,7 @@ class AiAssistantFab extends StatelessWidget {
       onPressed: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => const AiChatScreen(),
+            builder: (context) => const AiEntryScreen(),
           ),
         );
       },
@@ -48,7 +48,7 @@ class AiAssistantMiniFab extends StatelessWidget {
       onPressed: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => const AiChatScreen(),
+            builder: (context) => const AiEntryScreen(),
           ),
         );
       },
@@ -140,7 +140,7 @@ class AiQuickQueryButton extends StatelessWidget {
                   Navigator.pop(context);
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => const AiChatScreen(),
+                      builder: (context) => const AiEntryScreen(),
                     ),
                   );
                 },
@@ -168,7 +168,7 @@ class AiQuickQueryButton extends StatelessWidget {
         Navigator.pop(context);
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => const AiChatScreen(),
+            builder: (context) => const AiEntryScreen(),
           ),
         );
         // TODO: Auto-send query when chat opens
