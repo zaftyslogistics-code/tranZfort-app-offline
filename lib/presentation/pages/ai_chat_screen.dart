@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/query_intent.dart';
-import '../../domain/services/nlp_service.dart';
-import '../../domain/services/query_builder_service.dart';
-import '../../domain/services/response_generator_service.dart';
-import '../../domain/services/chat_service.dart';
-import '../providers/database_provider.dart';
+import '../providers/agent_orchestrator_provider.dart';
 import '../widgets/voice_input_button.dart';
 
 /// AI Chat Screen
@@ -18,29 +14,8 @@ class AiChatScreen extends ConsumerStatefulWidget {
 }
 
 class _AiChatScreenState extends ConsumerState<AiChatScreen> {
-  late ChatService _chatService;
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
-  bool _isProcessing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeChatService();
-  }
-
-  void _initializeChatService() {
-    final database = ref.read(databaseProvider);
-    final nlpService = NlpService();
-    final queryBuilder = QueryBuilderService(database);
-    final responseGenerator = ResponseGeneratorService();
-    
-    _chatService = ChatService(
-      nlpService: nlpService,
-      queryBuilder: queryBuilder,
-      responseGenerator: responseGenerator,
-    );
-  }
 
   @override
   void dispose() {
@@ -52,15 +27,10 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
-    setState(() {
-      _isProcessing = true;
-    });
-
     _messageController.clear();
 
     try {
-      await _chatService.processMessage(text);
-      setState(() {});
+      await ref.read(agentOrchestratorProvider).sendMessage(text);
       
       // Scroll to bottom
       Future.delayed(const Duration(milliseconds: 100), () {
@@ -78,10 +48,6 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           SnackBar(content: Text('Error: $e')),
         );
       }
-    } finally {
-      setState(() {
-        _isProcessing = false;
-      });
     }
   }
 
@@ -93,8 +59,10 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final messages = _chatService.messages;
-    final suggestions = _chatService.getSuggestions();
+    final orchestrator = ref.watch(agentOrchestratorProvider);
+    final messages = orchestrator.messages;
+    final suggestions = orchestrator.getSuggestions();
+    final isProcessing = orchestrator.isProcessing;
 
     return Scaffold(
       appBar: AppBar(
@@ -110,9 +78,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: () {
-              setState(() {
-                _chatService.clearHistory();
-              });
+              ref.read(agentOrchestratorProvider).clearHistory();
             },
             tooltip: 'Clear Chat',
           ),
@@ -136,11 +102,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           ),
 
           // Suggestions
-          if (suggestions.isNotEmpty && !_isProcessing)
+          if (suggestions.isNotEmpty && !isProcessing)
             _buildSuggestions(suggestions, theme),
 
           // Processing indicator
-          if (_isProcessing)
+          if (isProcessing)
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
@@ -168,7 +134,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             ),
 
           // Input area
-          _buildInputArea(theme),
+          _buildInputArea(theme, isProcessing),
         ],
       ),
     );
@@ -406,7 +372,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     );
   }
 
-  Widget _buildInputArea(ThemeData theme) {
+  Widget _buildInputArea(ThemeData theme, bool isProcessing) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -436,7 +402,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               maxLines: null,
               textInputAction: TextInputAction.send,
               onSubmitted: _sendMessage,
-              enabled: !_isProcessing,
+              enabled: !isProcessing,
             ),
           ),
           const SizedBox(width: 8),
@@ -449,7 +415,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           // Send button
           IconButton(
             icon: const Icon(Icons.send),
-            onPressed: _isProcessing
+            onPressed: isProcessing
                 ? null
                 : () => _sendMessage(_messageController.text),
             color: theme.colorScheme.primary,
