@@ -6,6 +6,8 @@ import '../../domain/services/nlp_service.dart';
 import '../../domain/services/query_builder_service.dart';
 import '../../domain/services/response_generator_service.dart';
 import '../../domain/services/rule_based_ai_engine.dart';
+import '../../domain/services/tool_executor.dart';
+import '../../domain/services/tool_registry.dart';
 import 'database_provider.dart';
 
 final agentOrchestratorProvider = ChangeNotifierProvider<AgentOrchestrator>((ref) {
@@ -22,5 +24,8 @@ final agentOrchestratorProvider = ChangeNotifierProvider<AgentOrchestrator>((ref
 
   final engine = RuleBasedAiEngine(chatService: chatService);
 
-  return AgentOrchestrator(engine: engine);
+  final toolRegistry = ToolRegistry.defaultRegistry();
+  final toolExecutor = ToolExecutor(registry: toolRegistry);
+
+  return AgentOrchestrator(engine: engine, toolExecutor: toolExecutor);
 });

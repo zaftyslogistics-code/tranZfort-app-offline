@@ -1,16 +1,25 @@
 import 'package:flutter/foundation.dart';
 
+import '../models/tool_call.dart';
+import '../models/tool_result.dart';
 import '../models/query_intent.dart';
 import 'ai_engine.dart';
+import 'tool_executor.dart';
 
 class AgentOrchestrator extends ChangeNotifier {
   final AiEngine _engine;
+  final ToolExecutor _toolExecutor;
 
   bool _isProcessing = false;
+  ToolResult? _lastToolResult;
 
   AgentOrchestrator({
     required AiEngine engine,
-  }) : _engine = engine;
+    required ToolExecutor toolExecutor,
+  })  : _engine = engine,
+        _toolExecutor = toolExecutor;
+
+  ToolResult? get lastToolResult => _lastToolResult;
 
   bool get isProcessing => _isProcessing;
 
@@ -26,6 +35,11 @@ class AgentOrchestrator extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final toolCall = _tryParseToolCall(trimmed);
+      if (toolCall != null) {
+        _lastToolResult = await _toolExecutor.execute(toolCall);
+        return;
+      }
       await _engine.processUserMessage(trimmed);
     } finally {
       _isProcessing = false;
@@ -35,6 +49,15 @@ class AgentOrchestrator extends ChangeNotifier {
 
   void clearHistory() {
     _engine.clearHistory();
+    _lastToolResult = null;
     notifyListeners();
+  }
+
+  ToolCall? _tryParseToolCall(String input) {
+    // Placeholder: real tool-call parsing will be implemented in Phase1-F.
+    // We deliberately do NOT attempt to parse free-form user text here.
+    // Expected future envelope example:
+    // {"tool_call": {"id": "...", "name": "query_trips", "arguments": {}}}
+    return null;
   }
 }
