@@ -2,35 +2,123 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/vehicle_provider.dart';
 import 'vehicle_form_screen.dart';
+import 'ai_entry_screen.dart';
 import '../../data/database.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ui_components.dart';
 
-class VehicleListScreen extends ConsumerWidget {
+class VehicleListScreen extends ConsumerStatefulWidget {
   const VehicleListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final vehicles = ref.watch(vehicleListProvider);
+  ConsumerState<VehicleListScreen> createState() => _VehicleListScreenState();
+}
+
+class _VehicleListScreenState extends ConsumerState<VehicleListScreen> {
+  final _searchController = TextEditingController();
+  String? _selectedFilter;
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Vehicle> _filterVehicles(List<Vehicle> vehicles) {
+    var filtered = vehicles;
+
+    if (_selectedFilter != null) {
+      filtered = filtered.where((vehicle) => vehicle.status == _selectedFilter).toList();
+    }
+
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((vehicle) {
+        return vehicle.truckNumber.toLowerCase().contains(query) ||
+            vehicle.truckType.toLowerCase().contains(query) ||
+            vehicle.registrationNumber.toLowerCase().contains(query);
+      }).toList();
+    }
+
+    return filtered;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vehiclesAsync = ref.watch(vehicleListProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Vehicles'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: const Icon(Icons.smart_toy),
             onPressed: () {
-              // TODO: Implement search
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AiEntryScreen(),
+                ),
+              );
             },
+            tooltip: 'AI Assistant',
           ),
         ],
       ),
-      body: vehicles.when(
-        data: (vehicleList) => vehicleList.isEmpty
-            ? _buildEmptyState(context)
-            : _buildVehicleList(context, vehicleList),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(child: Text('Error: $error')),
+      body: Column(
+        children: [
+          AppSearchBar(
+            controller: _searchController,
+            hintText: 'Search vehicles by number, type...',
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            onClear: () {
+              setState(() {
+                _searchQuery = '';
+              });
+            },
+          ),
+          FilterChipBar(
+            filters: const [
+              FilterChipData(
+                label: 'Idle',
+                value: 'IDLE',
+                color: AppTheme.infoColor,
+              ),
+              FilterChipData(
+                label: 'On Trip',
+                value: 'ON_TRIP',
+                color: AppTheme.successColor,
+              ),
+              FilterChipData(
+                label: 'Maintenance',
+                value: 'MAINTENANCE',
+                color: AppTheme.warningColor,
+              ),
+            ],
+            selectedFilter: _selectedFilter,
+            onFilterChanged: (filter) {
+              setState(() {
+                _selectedFilter = filter;
+              });
+            },
+          ),
+          Expanded(
+            child: vehiclesAsync.when(
+              data: (vehicleList) {
+                final filteredVehicles = _filterVehicles(vehicleList);
+                return filteredVehicles.isEmpty
+                    ? _buildEmptyState(context)
+                    : _buildVehicleList(context, filteredVehicles);
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(child: Text('Error: $error')),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -46,64 +134,33 @@ class VehicleListScreen extends ConsumerWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: AppTheme.primaryGradient,
-              ),
-              borderRadius: BorderRadius.circular(20),
+    return AppEmptyState(
+      icon: Icons.local_shipping,
+      title: 'No vehicles added yet',
+      subtitle: 'Add your first vehicle to get started',
+      primaryAction: AppPrimaryButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const VehicleFormScreen(),
             ),
-            child: Icon(
-              Icons.local_shipping,
-              size: 64,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'No vehicles added yet',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Add your first vehicle to get started',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onBackground,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const VehicleFormScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Add Vehicle'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              textStyle: const TextStyle(fontSize: 16),
-            ),
-          ),
-        ],
+          );
+        },
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add),
+            SizedBox(width: 8),
+            Text('Add Vehicle'),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildVehicleList(BuildContext context, List<Vehicle> vehicles) {
     return ListView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(AppTheme.spaceLg),
       itemCount: vehicles.length,
       itemBuilder: (context, index) {
         final vehicle = vehicles[index];
@@ -221,7 +278,7 @@ class _VehicleCard extends ConsumerWidget {
           }
         },
         child: PanelCard(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(AppTheme.spaceMd),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -257,12 +314,12 @@ class _VehicleCard extends ConsumerWidget {
                         StatusPill(label: vehicle.status, color: statusColor),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: AppTheme.spaceSm),
                     _MetaRow(
                       icon: AppTheme.getVehicleTypeIcon(vehicle.truckType),
                       label: '${vehicle.truckType} • ${vehicle.capacity} tons',
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: AppTheme.spaceXs),
                     _MetaRow(
                       icon: Icons.local_gas_station,
                       label: 'Fuel: ${vehicle.fuelType.toUpperCase()} • ${vehicle.registrationNumber}',

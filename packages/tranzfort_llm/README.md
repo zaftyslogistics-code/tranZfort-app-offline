@@ -1,15 +1,48 @@
 # tranzfort_llm
 
-A new Flutter plugin project.
+On-device LLM inference plugin for Tranzfort TMS using llama.cpp (MIT licensed).
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/to/develop-plugins),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
+- Load and run GGUF quantized models (llama.cpp format)
+- Streaming and non-streaming text generation
+- Cross-platform support (Android, iOS, Windows, Linux, macOS)
+- GPU acceleration support (where available)
+- Configurable context size, temperature, top-p, top-k sampling
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Usage
 
+```dart
+import 'package:tranzfort_llm/tranzfort_llm.dart';
+
+final llm = TranzfortLlm.instance;
+
+// Load model
+await llm.loadModel(
+  modelPath: '/path/to/model.gguf',
+  contextSize: 2048,
+  threads: 4,
+);
+
+// Generate text
+final response = await llm.generateText(
+  prompt: 'Hello, how are you?',
+  maxTokens: 100,
+  temperature: 0.7,
+);
+
+// Streaming generation
+llm.generateTextStream(
+  prompt: 'Tell me a story',
+  maxTokens: 500,
+).listen((token) {
+  print(token);
+});
+
+// Cleanup
+await llm.unloadModel();
+```
+
+## License
+
+MIT License - Based on llama.cpp (MIT licensed)

@@ -6,6 +6,24 @@ class AppTheme {
   // Private constructor to prevent instantiation
   AppTheme._();
 
+  static const double radiusSm = 12;
+  static const double radiusMd = 16;
+  static const double radiusLg = 20;
+
+  static const double spaceXs = 4;
+  static const double spaceSm = 8;
+  static const double spaceMd = 12;
+  static const double spaceLg = 16;
+  static const double spaceXl = 24;
+  static const double space2xl = 32;
+
+  static const double elevationNone = 0;
+  static const double elevationSm = 2;
+  static const double elevationMd = 4;
+
+  static const Duration motionFast = Duration(milliseconds: 160);
+  static const Duration motionMedium = Duration(milliseconds: 240);
+
   // ==================== COLORS ====================
   
   // Primary Colors - Electric Blue Palette

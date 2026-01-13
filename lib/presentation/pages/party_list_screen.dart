@@ -2,82 +2,122 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/party_provider.dart';
 import 'party_form_screen.dart';
+import 'ai_entry_screen.dart';
 import '../../data/database.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ui_components.dart';
 
-class PartyListScreen extends ConsumerWidget {
+class PartyListScreen extends ConsumerStatefulWidget {
   const PartyListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final parties = ref.watch(partyListProvider);
+  ConsumerState<PartyListScreen> createState() => _PartyListScreenState();
+}
+
+class _PartyListScreenState extends ConsumerState<PartyListScreen> {
+  final _searchController = TextEditingController();
+  String? _selectedFilter;
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Party> _filterParties(List<Party> parties) {
+    var filtered = parties;
+
+    if (_selectedFilter != null) {
+      if (_selectedFilter == 'WITH_GST') {
+        filtered = filtered.where((party) => party.gst != null && party.gst!.isNotEmpty).toList();
+      } else if (_selectedFilter == 'WITHOUT_GST') {
+        filtered = filtered.where((party) => party.gst == null || party.gst!.isEmpty).toList();
+      }
+    }
+
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((party) {
+        return party.name.toLowerCase().contains(query) ||
+            party.mobile.toLowerCase().contains(query) ||
+            party.city.toLowerCase().contains(query);
+      }).toList();
+    }
+
+    return filtered;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final partiesAsync = ref.watch(partyListProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Parties'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: const Icon(Icons.smart_toy),
             onPressed: () {
-              // TODO: Implement search
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AiEntryScreen(),
+                ),
+              );
             },
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-                case 'all':
-                  // TODO: Show all parties
-                  break;
-                case 'with_gst':
-                  // TODO: Show parties with GST
-                  break;
-                case 'without_gst':
-                  // TODO: Show parties without GST
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'all',
-                child: Row(
-                  children: [
-                    Icon(Icons.list, size: 16),
-                    SizedBox(width: 8),
-                    Text('All Parties'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'with_gst',
-                child: Row(
-                  children: [
-                    Icon(Icons.verified, size: 16),
-                    SizedBox(width: 8),
-                    Text('With GST'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'without_gst',
-                child: Row(
-                  children: [
-                    Icon(Icons.gpp_bad, size: 16),
-                    SizedBox(width: 8),
-                    Text('Without GST'),
-                  ],
-                ),
-              ),
-            ],
+            tooltip: 'AI Assistant',
           ),
         ],
       ),
-      body: parties.when(
-        data: (partyList) => partyList.isEmpty
-            ? _buildEmptyState(context)
-            : _buildPartyList(context, partyList),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(child: Text('Error: $error')),
+      body: Column(
+        children: [
+          AppSearchBar(
+            controller: _searchController,
+            hintText: 'Search parties by name, phone, city...',
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            onClear: () {
+              setState(() {
+                _searchQuery = '';
+              });
+            },
+          ),
+          FilterChipBar(
+            filters: const [
+              FilterChipData(
+                label: 'With GST',
+                value: 'WITH_GST',
+                color: AppTheme.successColor,
+              ),
+              FilterChipData(
+                label: 'Without GST',
+                value: 'WITHOUT_GST',
+                color: AppTheme.infoColor,
+              ),
+            ],
+            selectedFilter: _selectedFilter,
+            onFilterChanged: (filter) {
+              setState(() {
+                _selectedFilter = filter;
+              });
+            },
+          ),
+          Expanded(
+            child: partiesAsync.when(
+              data: (partyList) {
+                final filteredParties = _filterParties(partyList);
+                return filteredParties.isEmpty
+                    ? _buildEmptyState(context)
+                    : _buildPartyList(context, filteredParties);
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(child: Text('Error: $error')),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -93,64 +133,33 @@ class PartyListScreen extends ConsumerWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: AppTheme.infoGradient,
-              ),
-              borderRadius: BorderRadius.circular(20),
+    return AppEmptyState(
+      icon: Icons.business,
+      title: 'No parties added yet',
+      subtitle: 'Add your first party to get started',
+      primaryAction: AppPrimaryButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const PartyFormScreen(),
             ),
-            child: Icon(
-              Icons.business,
-              size: 64,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'No parties added yet',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Add your first party to get started',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onBackground,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const PartyFormScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Add Party'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              textStyle: const TextStyle(fontSize: 16),
-            ),
-          ),
-        ],
+          );
+        },
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add),
+            SizedBox(width: 8),
+            Text('Add Party'),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildPartyList(BuildContext context, List<Party> parties) {
     return ListView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(AppTheme.spaceLg),
       itemCount: parties.length,
       itemBuilder: (context, index) {
         final party = parties[index];
@@ -272,7 +281,7 @@ class _PartyCard extends ConsumerWidget {
           }
         },
         child: PanelCard(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(AppTheme.spaceMd),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -305,15 +314,16 @@ class _PartyCard extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        if (hasGst) StatusPill(label: 'GST', color: AppTheme.successColor),
+                        if (hasGst)
+                          StatusPill(label: 'GST', color: AppTheme.successColor),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: AppTheme.spaceSm),
                     _MetaRow(
                       icon: Icons.phone,
                       label: service.formatMobileNumber(party.mobile),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: AppTheme.spaceXs),
                     _MetaRow(
                       icon: Icons.location_city,
                       label: party.city,

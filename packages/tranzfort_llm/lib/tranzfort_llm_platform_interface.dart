@@ -26,4 +26,47 @@ abstract class TranzfortLlmPlatform extends PlatformInterface {
   Future<String?> getPlatformVersion() {
     throw UnimplementedError('platformVersion() has not been implemented.');
   }
+
+  Future<bool> loadModel({
+    required String modelPath,
+    required int contextSize,
+    required int threads,
+    required bool useGpu,
+  }) {
+    throw UnimplementedError('loadModel() has not been implemented.');
+  }
+
+  Future<void> unloadModel() {
+    throw UnimplementedError('unloadModel() has not been implemented.');
+  }
+
+  Future<bool> isModelLoaded() {
+    throw UnimplementedError('isModelLoaded() has not been implemented.');
+  }
+
+  Future<String> generateText({
+    required String prompt,
+    required int maxTokens,
+    required double temperature,
+    required double topP,
+    required int topK,
+    String? stopSequence,
+  }) {
+    throw UnimplementedError('generateText() has not been implemented.');
+  }
+
+  Stream<String> generateTextStream({
+    required String prompt,
+    required int maxTokens,
+    required double temperature,
+    required double topP,
+    required int topK,
+    String? stopSequence,
+  }) {
+    throw UnimplementedError('generateTextStream() has not been implemented.');
+  }
+
+  Future<void> cancelGeneration() {
+    throw UnimplementedError('cancelGeneration() has not been implemented.');
+  }
 }

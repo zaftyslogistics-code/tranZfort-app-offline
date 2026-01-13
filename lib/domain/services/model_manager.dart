@@ -33,7 +33,7 @@ class ModelManager {
     await _prefs.remove(installedModelKey);
   }
 
-  Future<bool> isInstalledAndValid(InstalledModel model) async {
+  Future<bool> isInstalledAndValid(InstalledModel model, {bool verifySha = true}) async {
     final exists = await _fileStore.exists(model.filePath);
     if (!exists) {
       return false;
@@ -44,6 +44,10 @@ class ModelManager {
       return false;
     }
 
+    if (!verifySha) {
+      return true;
+    }
+
     final hash = await _fileStore.sha256Hex(model.filePath);
     return hash.toLowerCase() == model.sha256.toLowerCase();
   }
@@ -52,6 +56,7 @@ class ModelManager {
     required ModelPackManifest manifest,
     required ModelPackEntry entry,
     required void Function(int receivedBytes, int? totalBytes) onProgress,
+    bool Function()? shouldCancel,
   }) async {
     final modelsRoot = await _fileStore.ensureModelsRootDir();
 
@@ -61,12 +66,11 @@ class ModelManager {
 
     final destPath = p.join(modelsRoot, manifest.id, manifest.version, fileName);
 
-    await _fileStore.deleteIfExists(destPath);
-
     final downloadedPath = await _fileStore.downloadFile(
       url: entry.url,
       destPath: destPath,
       onProgress: onProgress,
+      shouldCancel: shouldCancel,
     );
 
     final actualBytes = await _fileStore.fileSize(downloadedPath);

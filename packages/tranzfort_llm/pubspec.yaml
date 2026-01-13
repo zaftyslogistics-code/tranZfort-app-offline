@@ -1,7 +1,9 @@
 name: tranzfort_llm
-description: "A new Flutter plugin project."
-version: 0.0.1
-homepage:
+description: "On-device LLM inference plugin for Tranzfort TMS using llama.cpp (MIT licensed)"
+version: 0.1.0
+homepage: https://github.com/zaftyslogistics/tranzfort-tms
+repository: https://github.com/zaftyslogistics/tranzfort-tms
+license: MIT
 
 environment:
   sdk: ^3.10.4
@@ -38,6 +40,12 @@ flutter:
         package: com.zaftyslogistics.tranzfort.tranzfort_llm
         pluginClass: TranzfortLlmPlugin
       ios:
+        pluginClass: TranzfortLlmPlugin
+      windows:
+        pluginClass: TranzfortLlmPlugin
+      linux:
+        pluginClass: TranzfortLlmPlugin
+      macos:
         pluginClass: TranzfortLlmPlugin
 
   # To add assets to your plugin package, add an assets section, like this:

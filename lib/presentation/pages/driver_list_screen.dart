@@ -2,26 +2,66 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/driver_provider.dart';
 import 'driver_form_screen.dart';
+import 'ai_entry_screen.dart';
 import '../../data/database.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ui_components.dart';
 
-class DriverListScreen extends ConsumerWidget {
+class DriverListScreen extends ConsumerStatefulWidget {
   const DriverListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final drivers = ref.watch(driverListProvider);
+  ConsumerState<DriverListScreen> createState() => _DriverListScreenState();
+}
+
+class _DriverListScreenState extends ConsumerState<DriverListScreen> {
+  final _searchController = TextEditingController();
+  String? _selectedFilter;
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Driver> _filterDrivers(List<Driver> drivers) {
+    var filtered = drivers;
+
+    if (_selectedFilter != null) {
+      filtered = filtered.where((driver) => driver.status == _selectedFilter).toList();
+    }
+
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((driver) {
+        return driver.name.toLowerCase().contains(query) ||
+            driver.phone.toLowerCase().contains(query) ||
+            driver.licenseNumber.toLowerCase().contains(query);
+      }).toList();
+    }
+
+    return filtered;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final driversAsync = ref.watch(driverListProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Drivers'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: const Icon(Icons.smart_toy),
             onPressed: () {
-              // TODO: Implement search
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AiEntryScreen(),
+                ),
+              );
             },
+            tooltip: 'AI Assistant',
           ),
           IconButton(
             icon: const Icon(Icons.warning),
@@ -31,12 +71,60 @@ class DriverListScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: drivers.when(
-        data: (driverList) => driverList.isEmpty
-            ? _buildEmptyState(context)
-            : _buildDriverList(context, driverList),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(child: Text('Error: $error')),
+      body: Column(
+        children: [
+          AppSearchBar(
+            controller: _searchController,
+            hintText: 'Search drivers by name, phone, license...',
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            onClear: () {
+              setState(() {
+                _searchQuery = '';
+              });
+            },
+          ),
+          FilterChipBar(
+            filters: const [
+              FilterChipData(
+                label: 'Active',
+                value: 'ACTIVE',
+                color: AppTheme.successColor,
+              ),
+              FilterChipData(
+                label: 'Inactive',
+                value: 'INACTIVE',
+                color: AppTheme.dangerColor,
+              ),
+              FilterChipData(
+                label: 'On Leave',
+                value: 'ON_LEAVE',
+                color: AppTheme.warningColor,
+              ),
+            ],
+            selectedFilter: _selectedFilter,
+            onFilterChanged: (filter) {
+              setState(() {
+                _selectedFilter = filter;
+              });
+            },
+          ),
+          Expanded(
+            child: driversAsync.when(
+              data: (driverList) {
+                final filteredDrivers = _filterDrivers(driverList);
+                return filteredDrivers.isEmpty
+                    ? _buildEmptyState(context)
+                    : _buildDriverList(context, filteredDrivers);
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(child: Text('Error: $error')),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -52,64 +140,33 @@ class DriverListScreen extends ConsumerWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: AppTheme.successGradient,
-              ),
-              borderRadius: BorderRadius.circular(20),
+    return AppEmptyState(
+      icon: Icons.people,
+      title: 'No drivers added yet',
+      subtitle: 'Add your first driver to get started',
+      primaryAction: AppPrimaryButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const DriverFormScreen(),
             ),
-            child: Icon(
-              Icons.people,
-              size: 64,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'No drivers added yet',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Add your first driver to get started',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onBackground,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const DriverFormScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Add Driver'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              textStyle: const TextStyle(fontSize: 16),
-            ),
-          ),
-        ],
+          );
+        },
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add),
+            SizedBox(width: 8),
+            Text('Add Driver'),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildDriverList(BuildContext context, List<Driver> drivers) {
     return ListView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(AppTheme.spaceLg),
       itemCount: drivers.length,
       itemBuilder: (context, index) {
         final driver = drivers[index];
@@ -233,7 +290,7 @@ class _DriverCard extends ConsumerWidget {
           }
         },
         child: PanelCard(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(AppTheme.spaceMd),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -268,17 +325,19 @@ class _DriverCard extends ConsumerWidget {
                         ),
                         StatusPill(label: driver.status, color: statusColor),
                         if (isExpiring) ...[
-                          const SizedBox(width: 8),
-                          StatusPill(label: _getLicenseStatusText(licenseStatus), color: licenseColor),
+                          const SizedBox(width: AppTheme.spaceSm),
+                          StatusPill(
+                              label: _getLicenseStatusText(licenseStatus),
+                              color: licenseColor),
                         ],
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: AppTheme.spaceSm),
                     _MetaRow(
                       icon: Icons.phone,
                       label: driver.phone,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: AppTheme.spaceXs),
                     _MetaRow(
                       icon: Icons.badge,
                       label: '${driver.licenseType} • ${driver.licenseNumber}',

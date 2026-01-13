@@ -10,6 +10,43 @@ class MockTranzfortLlmPlatform
 
   @override
   Future<String?> getPlatformVersion() => Future.value('42');
+
+  @override
+  Future<bool> loadModel({
+    required String modelPath,
+    required int contextSize,
+    required int threads,
+    required bool useGpu,
+  }) => Future.value(true);
+
+  @override
+  Future<void> unloadModel() => Future.value();
+
+  @override
+  Future<bool> isModelLoaded() => Future.value(false);
+
+  @override
+  Future<String> generateText({
+    required String prompt,
+    required int maxTokens,
+    required double temperature,
+    required double topP,
+    required int topK,
+    String? stopSequence,
+  }) => Future.value('Mock response');
+
+  @override
+  Stream<String> generateTextStream({
+    required String prompt,
+    required int maxTokens,
+    required double temperature,
+    required double topP,
+    required int topK,
+    String? stopSequence,
+  }) => Stream.value('Mock stream response');
+
+  @override
+  Future<void> cancelGeneration() => Future.value();
 }
 
 void main() {
@@ -20,7 +57,7 @@ void main() {
   });
 
   test('getPlatformVersion', () async {
-    TranzfortLlm tranzfortLlmPlugin = TranzfortLlm();
+    final TranzfortLlm tranzfortLlmPlugin = TranzfortLlm.instance;
     MockTranzfortLlmPlatform fakePlatform = MockTranzfortLlmPlatform();
     TranzfortLlmPlatform.instance = fakePlatform;
 

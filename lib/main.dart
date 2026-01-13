@@ -16,12 +16,15 @@ import 'presentation/pages/expense_list_screen.dart';
 import 'presentation/pages/payment_list_screen.dart';
 import 'presentation/pages/trip_form_screen.dart';
 import 'presentation/pages/expense_form_screen.dart';
+import 'presentation/pages/payment_form_screen.dart';
 import 'presentation/pages/settings_screen.dart';
+import 'presentation/pages/insights_hub_screen.dart';
 import 'presentation/pages/ai_entry_screen.dart';
 import 'presentation/widgets/quick_action_fab.dart';
 import 'presentation/widgets/ai_assistant_fab.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/enhanced_widgets.dart';
+import 'core/widgets/ui_components.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,7 +78,15 @@ class DashboardScreen extends ConsumerWidget {
     // Database will initialize when first accessed by providers
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tranzfort TMS'),
+        title: Image.asset(
+          'assets/images/logo_full.png',
+          height: 40,
+          width: 40,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(Icons.local_shipping, size: 40);
+          },
+        ),
+        centerTitle: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.smart_toy),
@@ -87,6 +98,17 @@ class DashboardScreen extends ConsumerWidget {
               );
             },
             tooltip: 'AI Assistant',
+          ),
+          IconButton(
+            icon: const Icon(Icons.insights),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const InsightsHubScreen(),
+                ),
+              );
+            },
+            tooltip: 'Insights',
           ),
           IconButton(
             icon: const Icon(Icons.settings),
@@ -101,39 +123,57 @@ class DashboardScreen extends ConsumerWidget {
         ],
       ),
       body: const DashboardBody(),
-      floatingActionButton: QuickActionFAB(
-        onStartTrip: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const TripFormScreen(),
+      floatingActionButton: SizedBox(
+        width: 160,
+        height: 120,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: QuickActionFAB(
+                onStartTrip: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const TripFormScreen(),
+                    ),
+                  );
+                },
+                onAddExpense: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const ExpenseFormScreen(),
+                    ),
+                  );
+                },
+                onScanBill: () {
+                  // TODO: Implement bill scanning
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Bill scanning coming soon')),
+                  );
+                },
+                onRecordPayment: () {
+                  // TODO: Navigate to payment form
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Payment recording coming soon')),
+                  );
+                },
+                onAddFuel: () {
+                  // TODO: Navigate to fuel entry
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Fuel entry coming soon')),
+                  );
+                },
+              ),
             ),
-          );
-        },
-        onAddExpense: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const ExpenseFormScreen(),
+            Positioned(
+              right: 80,
+              bottom: 16,
+              child: AiAssistantMiniFab(),
             ),
-          );
-        },
-        onScanBill: () {
-          // TODO: Implement bill scanning
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Bill scanning coming soon')),
-          );
-        },
-        onRecordPayment: () {
-          // TODO: Navigate to payment form
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Payment recording coming soon')),
-          );
-        },
-        onAddFuel: () {
-          // TODO: Navigate to fuel entry
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Fuel entry coming soon')),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
@@ -155,7 +195,7 @@ class DashboardBody extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppTheme.spaceLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -173,7 +213,63 @@ class DashboardBody extends ConsumerWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppTheme.spaceXl),
+
+          tripStats.when(
+            data: (tStats) => paymentStats.when(
+              data: (payStats) => expenseStats.when(
+                data: (expStats) => PanelCard(
+                  padding: const EdgeInsets.all(AppTheme.spaceLg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Today',
+                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          StatusPill(
+                            label: 'Active trips: ${tStats['ACTIVE'] ?? 0}',
+                            color: AppTheme.primaryColor,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTheme.spaceMd),
+                      Wrap(
+                        spacing: AppTheme.spaceSm,
+                        runSpacing: AppTheme.spaceSm,
+                        children: [
+                          StatusPill(
+                            label: 'Payments: ${payStats['TOTAL'] ?? 0}',
+                            color: AppTheme.successColor,
+                          ),
+                          StatusPill(
+                            label: 'Expenses: ${expStats['TOTAL'] ?? 0}',
+                            color: AppTheme.warningColor,
+                          ),
+                          StatusPill(
+                            label: 'Completed trips: ${tStats['COMPLETED'] ?? 0}',
+                            color: AppTheme.successColor,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                loading: () => const SizedBox.shrink(),
+                error: (error, stack) => const SizedBox.shrink(),
+              ),
+              loading: () => const SizedBox.shrink(),
+              error: (error, stack) => const SizedBox.shrink(),
+            ),
+            loading: () => const SizedBox.shrink(),
+            error: (error, stack) => const SizedBox.shrink(),
+          ),
+
+          const SizedBox(height: AppTheme.spaceXl),
           
           // Quick Stats Cards
           vehicleStats.when(
@@ -366,16 +462,10 @@ class DashboardBody extends ConsumerWidget {
             error: (error, stack) => Center(child: Text('Error: $error')),
           ),
           
-          const SizedBox(height: 24),
+          const SizedBox(height: AppTheme.spaceXl),
           
           // Quick Actions
-          Text(
-            'Quick Actions',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 16),
+          const AppSectionHeader(title: 'Quick Actions'),
 
           LayoutBuilder(
             builder: (context, constraints) {
@@ -385,9 +475,9 @@ class DashboardBody extends ConsumerWidget {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisCount: crossAxisCount,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.2,
+                mainAxisSpacing: AppTheme.spaceMd,
+                crossAxisSpacing: AppTheme.spaceMd,
+                childAspectRatio: 1.3,
                 children: [
                   EnhancedActionButton(
                     title: 'Create Trip',
@@ -396,7 +486,7 @@ class DashboardBody extends ConsumerWidget {
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => const TripListScreen(),
+                          builder: (context) => const TripFormScreen(),
                         ),
                       );
                     },
@@ -408,7 +498,7 @@ class DashboardBody extends ConsumerWidget {
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => const PaymentListScreen(),
+                          builder: (context) => const PaymentFormScreen(),
                         ),
                       );
                     },
@@ -420,7 +510,7 @@ class DashboardBody extends ConsumerWidget {
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => const ExpenseListScreen(),
+                          builder: (context) => const ExpenseFormScreen(),
                         ),
                       );
                     },
@@ -441,6 +531,111 @@ class DashboardBody extends ConsumerWidget {
               );
             },
           ),
+
+          const AppSectionHeader(title: 'Insights Overview'),
+          
+          PanelCard(
+            padding: const EdgeInsets.all(AppTheme.spaceLg),
+            child: Column(
+              children: [
+                _InsightShortcutTile(
+                  title: 'Profit & Loss',
+                  subtitle: 'Monthly trend analysis',
+                  icon: Icons.analytics,
+                  color: AppTheme.successColor,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => const InsightsHubScreen()),
+                    );
+                  },
+                ),
+                const Divider(height: AppTheme.spaceXl),
+                _InsightShortcutTile(
+                  title: 'Expense Breakdown',
+                  subtitle: 'Top spending categories',
+                  icon: Icons.pie_chart,
+                  color: AppTheme.warningColor,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => const InsightsHubScreen()),
+                    );
+                  },
+                ),
+                const Divider(height: AppTheme.spaceXl),
+                _InsightShortcutTile(
+                  title: 'Route Performance',
+                  subtitle: 'Most profitable routes',
+                  icon: Icons.map,
+                  color: AppTheme.primaryColor,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => const InsightsHubScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: AppTheme.space2xl),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightShortcutTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _InsightShortcutTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppTheme.spaceSm),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: AppTheme.spaceLg),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.chevron_right,
+            color: theme.colorScheme.onSurface.withOpacity(0.3),
+          ),
         ],
       ),
     );
@@ -452,57 +647,17 @@ Widget _buildLoadingStats() {
     children: [
       Row(
         children: [
-          Expanded(
-            child: ShimmerLoading(
-              child: Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ShimmerLoading(
-              child: Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-            ),
-          ),
+          const Expanded(child: DashboardStatSkeleton()),
+          const SizedBox(width: AppTheme.spaceMd),
+          const Expanded(child: DashboardStatSkeleton()),
         ],
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: AppTheme.spaceMd),
       Row(
         children: [
-          Expanded(
-            child: ShimmerLoading(
-              child: Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ShimmerLoading(
-              child: Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-            ),
-          ),
+          const Expanded(child: DashboardStatSkeleton()),
+          const SizedBox(width: AppTheme.spaceMd),
+          const Expanded(child: DashboardStatSkeleton()),
         ],
       ),
     ],

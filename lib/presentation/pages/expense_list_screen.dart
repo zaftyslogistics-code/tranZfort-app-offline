@@ -7,12 +7,48 @@ import '../../data/database.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ui_components.dart';
 
-class ExpenseListScreen extends ConsumerWidget {
+class ExpenseListScreen extends ConsumerStatefulWidget {
   const ExpenseListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final expenses = ref.watch(expenseListProvider);
+  ConsumerState<ExpenseListScreen> createState() => _ExpenseListScreenState();
+}
+
+class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
+  final _searchController = TextEditingController();
+  String? _selectedFilter;
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Expense> _filterExpenses(List<Expense> expenses) {
+    var filtered = expenses;
+
+    // Apply category filter
+    if (_selectedFilter != null) {
+      filtered = filtered.where((expense) => expense.category == _selectedFilter).toList();
+    }
+
+    // Apply search query
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((expense) {
+        return expense.category.toLowerCase().contains(query) ||
+            expense.notes?.toLowerCase().contains(query) == true ||
+            expense.paidMode.toLowerCase().contains(query);
+      }).toList();
+    }
+
+    return filtered;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final expensesAsync = ref.watch(expenseListProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -29,67 +65,70 @@ class ExpenseListScreen extends ConsumerWidget {
             },
             tooltip: 'AI Assistant',
           ),
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // TODO: Implement search
-            },
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-                case 'all':
-                  // TODO: Show all expenses
-                  break;
-                case 'by_category':
-                  // TODO: Show category filter
-                  break;
-                case 'by_payment_mode':
-                  // TODO: Show payment mode filter
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'all',
-                child: Row(
-                  children: [
-                    Icon(Icons.list, size: 16),
-                    SizedBox(width: 8),
-                    Text('All Expenses'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'by_category',
-                child: Row(
-                  children: [
-                    Icon(Icons.category, size: 16),
-                    SizedBox(width: 8),
-                    Text('By Category'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'by_payment_mode',
-                child: Row(
-                  children: [
-                    Icon(Icons.payment, size: 16),
-                    SizedBox(width: 8),
-                    Text('By Payment Mode'),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ],
       ),
-      body: expenses.when(
-        data: (expenseList) => expenseList.isEmpty
-            ? _buildEmptyState(context)
-            : _buildExpenseList(context, expenseList),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(child: Text('Error: $error')),
+      body: Column(
+        children: [
+          // Search bar
+          AppSearchBar(
+            controller: _searchController,
+            hintText: 'Search expenses by category, notes...',
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            onClear: () {
+              setState(() {
+                _searchQuery = '';
+              });
+            },
+          ),
+          // Filter chips
+          FilterChipBar(
+            filters: const [
+              FilterChipData(
+                label: 'Fuel',
+                value: 'FUEL',
+                color: AppTheme.warningColor,
+              ),
+              FilterChipData(
+                label: 'Toll',
+                value: 'TOLL',
+                color: AppTheme.infoColor,
+              ),
+              FilterChipData(
+                label: 'Maintenance',
+                value: 'MAINTENANCE',
+                color: AppTheme.dangerColor,
+              ),
+              FilterChipData(
+                label: 'Other',
+                value: 'OTHER',
+                color: AppTheme.accentColor,
+              ),
+            ],
+            selectedFilter: _selectedFilter,
+            onFilterChanged: (filter) {
+              setState(() {
+                _selectedFilter = filter;
+              });
+            },
+          ),
+          // Expense list
+          Expanded(
+            child: expensesAsync.when(
+              data: (expenseList) {
+                final filteredExpenses = _filterExpenses(expenseList);
+                return filteredExpenses.isEmpty
+                    ? _buildEmptyState(context)
+                    : _buildExpenseList(context, filteredExpenses);
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(child: Text('Error: $error')),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -105,64 +144,33 @@ class ExpenseListScreen extends ConsumerWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: AppTheme.warningGradient,
-              ),
-              borderRadius: BorderRadius.circular(20),
+    return AppEmptyState(
+      icon: Icons.receipt_long,
+      title: 'No expenses added yet',
+      subtitle: 'Add your first expense to get started',
+      primaryAction: AppPrimaryButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const ExpenseFormScreen(),
             ),
-            child: Icon(
-              Icons.receipt_long,
-              size: 64,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'No expenses added yet',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Add your first expense to get started',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onBackground,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const ExpenseFormScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Add Expense'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              textStyle: const TextStyle(fontSize: 16),
-            ),
-          ),
-        ],
+          );
+        },
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add),
+            SizedBox(width: 8),
+            Text('Add Expense'),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildExpenseList(BuildContext context, List<Expense> expenses) {
     return ListView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(AppTheme.spaceLg),
       itemCount: expenses.length,
       itemBuilder: (context, index) {
         final expense = expenses[index];
@@ -285,7 +293,7 @@ class _ExpenseCard extends ConsumerWidget {
           }
         },
         child: PanelCard(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(AppTheme.spaceMd),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -318,16 +326,16 @@ class _ExpenseCard extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        if (hasBill) StatusPill(label: 'Bill', color: AppTheme.successColor),
+                        StatusPill(label: expense.paidMode, color: AppTheme.infoColor),
+                        if (hasBill) ...[
+                          const SizedBox(width: 8),
+                          StatusPill(label: 'Bill', color: AppTheme.successColor),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    _MetaRow(
-                      icon: Icons.payment,
-                      label: expense.paidMode,
-                    ),
+                    const SizedBox(height: AppTheme.spaceSm),
                     if (expense.notes != null && expense.notes!.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: AppTheme.spaceXs),
                       _MetaRow(
                         icon: Icons.notes,
                         label: expense.notes!,

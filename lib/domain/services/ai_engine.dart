@@ -9,3 +9,7 @@ abstract class AiEngine {
 
   void clearHistory();
 }
+
+abstract class StreamingAiEngine {
+  Stream<String> streamUserMessage(String userInput);
+}

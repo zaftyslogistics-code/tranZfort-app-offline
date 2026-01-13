@@ -84,18 +84,21 @@ class _QuickActionFABState extends State<QuickActionFAB>
         ..._buildActionButtons(theme),
 
         // Main FAB
-        FloatingActionButton(
-          onPressed: _toggle,
-          child: AnimatedBuilder(
-            animation: _expandAnimation,
-            builder: (context, child) {
-              return Transform.rotate(
-                angle: _expandAnimation.value * math.pi / 4,
-                child: Icon(
-                  _isExpanded ? Icons.close : Icons.add,
-                ),
-              );
-            },
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: FloatingActionButton(
+            onPressed: _toggle,
+            child: AnimatedBuilder(
+              animation: _expandAnimation,
+              builder: (context, child) {
+                return Transform.rotate(
+                  angle: _expandAnimation.value * math.pi / 4,
+                  child: Icon(
+                    _isExpanded ? Icons.close : Icons.add,
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ],

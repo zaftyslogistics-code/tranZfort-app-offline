@@ -7,12 +7,49 @@ import '../../data/database.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ui_components.dart';
 
-class TripListScreen extends ConsumerWidget {
+class TripListScreen extends ConsumerStatefulWidget {
   const TripListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final trips = ref.watch(tripListProvider);
+  ConsumerState<TripListScreen> createState() => _TripListScreenState();
+}
+
+class _TripListScreenState extends ConsumerState<TripListScreen> {
+  final _searchController = TextEditingController();
+  String? _selectedFilter;
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Trip> _filterTrips(List<Trip> trips) {
+    var filtered = trips;
+
+    // Apply status filter
+    if (_selectedFilter != null) {
+      filtered = filtered.where((trip) => trip.status == _selectedFilter).toList();
+    }
+
+    // Apply search query
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((trip) {
+        return trip.fromLocation.toLowerCase().contains(query) ||
+            trip.toLocation.toLowerCase().contains(query) ||
+            trip.vehicleId.toLowerCase().contains(query) ||
+            trip.driverId.toLowerCase().contains(query);
+      }).toList();
+    }
+
+    return filtered;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tripsAsync = ref.watch(tripListProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -29,67 +66,65 @@ class TripListScreen extends ConsumerWidget {
             },
             tooltip: 'AI Assistant',
           ),
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // TODO: Implement search
-            },
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-                case 'all':
-                  // TODO: Show all trips
-                  break;
-                case 'active':
-                  // TODO: Show active trips
-                  break;
-                case 'completed':
-                  // TODO: Show completed trips
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'all',
-                child: Row(
-                  children: [
-                    Icon(Icons.list, size: 16),
-                    SizedBox(width: 8),
-                    Text('All Trips'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'active',
-                child: Row(
-                  children: [
-                    Icon(Icons.play_arrow, size: 16),
-                    SizedBox(width: 8),
-                    Text('Active'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'completed',
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle, size: 16),
-                    SizedBox(width: 8),
-                    Text('Completed'),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ],
       ),
-      body: trips.when(
-        data: (tripList) => tripList.isEmpty
-            ? _buildEmptyState(context)
-            : _buildTripList(context, tripList),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(child: Text('Error: $error')),
+      body: Column(
+        children: [
+          // Search bar
+          AppSearchBar(
+            controller: _searchController,
+            hintText: 'Search trips by route, vehicle, driver...',
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            onClear: () {
+              setState(() {
+                _searchQuery = '';
+              });
+            },
+          ),
+          // Filter chips
+          FilterChipBar(
+            filters: const [
+              FilterChipData(
+                label: 'Active',
+                value: 'ACTIVE',
+                color: AppTheme.infoColor,
+              ),
+              FilterChipData(
+                label: 'Completed',
+                value: 'COMPLETED',
+                color: AppTheme.successColor,
+              ),
+              FilterChipData(
+                label: 'Cancelled',
+                value: 'CANCELLED',
+                color: AppTheme.dangerColor,
+              ),
+            ],
+            selectedFilter: _selectedFilter,
+            onFilterChanged: (filter) {
+              setState(() {
+                _selectedFilter = filter;
+              });
+            },
+          ),
+          // Trip list
+          Expanded(
+            child: tripsAsync.when(
+              data: (tripList) {
+                final filteredTrips = _filterTrips(tripList);
+                return filteredTrips.isEmpty
+                    ? _buildEmptyState(context)
+                    : _buildTripList(context, filteredTrips);
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(child: Text('Error: $error')),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -105,64 +140,33 @@ class TripListScreen extends ConsumerWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: AppTheme.primaryGradient,
-              ),
-              borderRadius: BorderRadius.circular(20),
+    return AppEmptyState(
+      icon: Icons.directions,
+      title: 'No trips added yet',
+      subtitle: 'Create your first trip to get started',
+      primaryAction: AppPrimaryButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const TripFormScreen(),
             ),
-            child: Icon(
-              Icons.directions,
-              size: 64,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'No trips added yet',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Create your first trip to get started',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onBackground,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const TripFormScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Create Trip'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              textStyle: const TextStyle(fontSize: 16),
-            ),
-          ),
-        ],
+          );
+        },
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add),
+            SizedBox(width: 8),
+            Text('Create Trip'),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildTripList(BuildContext context, List<Trip> trips) {
     return ListView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(AppTheme.spaceLg),
       itemCount: trips.length,
       itemBuilder: (context, index) {
         final trip = trips[index];
@@ -284,7 +288,7 @@ class _TripCard extends ConsumerWidget {
           }
         },
         child: PanelCard(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(AppTheme.spaceMd),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -320,20 +324,26 @@ class _TripCard extends ConsumerWidget {
                         StatusPill(label: trip.status, color: statusColor),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: AppTheme.spaceSm),
                     _MetaRow(
                       icon: Icons.local_shipping,
                       label: 'Vehicle: ${trip.vehicleId}',
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: AppTheme.spaceXs),
                     _MetaRow(
                       icon: Icons.people,
                       label: 'Driver: ${trip.driverId}',
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: AppTheme.spaceXs),
                     _MetaRow(
                       icon: Icons.business,
                       label: 'Party: ${trip.partyId}',
+                    ),
+                    const SizedBox(height: AppTheme.spaceXs),
+                    _MetaRow(
+                      icon: Icons.calendar_today,
+                      label:
+                          'Start: ${trip.startDate.day}/${trip.startDate.month}/${trip.startDate.year} • ${tripSummary['duration']}',
                     ),
                   ],
                 ),
@@ -348,9 +358,9 @@ class _TripCard extends ConsumerWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppTheme.spaceXs),
                   Text(
-                    tripSummary['duration'],
+                    'Bal ₹${(tripSummary['balance'] as double).toStringAsFixed(0)}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurface.withOpacity(0.7),
                       fontWeight: FontWeight.w600,

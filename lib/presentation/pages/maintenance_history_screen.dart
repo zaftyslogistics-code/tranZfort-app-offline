@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database.dart';
 import '../providers/database_provider.dart';
 import '../providers/vehicle_provider.dart';
+import '../providers/fuel_analytics_provider.dart';
 
 /// Maintenance History Screen
 /// Shows all past maintenance records with filtering and cost analysis
@@ -29,6 +30,7 @@ class _MaintenanceHistoryScreenState extends ConsumerState<MaintenanceHistoryScr
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final vehicles = ref.watch(vehicleListProvider);
+    final maintenanceSummary = ref.watch(maintenanceSummaryProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -95,28 +97,32 @@ class _MaintenanceHistoryScreenState extends ConsumerState<MaintenanceHistoryScr
           // Summary Cards
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildSummaryCard(
-                    'Total Services',
-                    '24',
-                    Icons.build,
-                    theme.colorScheme.primary,
-                    theme,
+            child: maintenanceSummary.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Text('Error: $error'),
+              data: (summary) => Row(
+                children: [
+                  Expanded(
+                    child: _buildSummaryCard(
+                      'Total Services',
+                      '${summary['totalServices'] ?? 0}',
+                      Icons.build,
+                      theme.colorScheme.primary,
+                      theme,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildSummaryCard(
-                    'Total Cost',
-                    '₹84,500',
-                    Icons.currency_rupee,
-                    Colors.orange,
-                    theme,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildSummaryCard(
+                      'Completed',
+                      '${summary['completedServices'] ?? 0}',
+                      Icons.check_circle,
+                      Colors.green,
+                      theme,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
